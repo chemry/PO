@@ -9,6 +9,16 @@ int i, user_num;
 const char * sch_alg[10] = {"fcfs", "pr", "sjf"};
 const int scheduler_num = 3;
 
+
+/*
+p2s: pipe from parent to scheduler process.
+s2o: pipe from scheduler to output module.
+p2o: pipe from parent to output module.
+*/
+int p2s_fd[scheduler_num][2];
+int s2o_fd[scheduler_num][2];
+int p2o_fd[2];
+
 void close_pipe(const int rfd, const int wfd) { // close a pair of file descriptors
     if (close(rfd) == -1 || close(wfd) == -1) {
         printf("couldn't close file");
@@ -146,6 +156,81 @@ int sep_line(char * line, int * cmd, char * file){
 }
 
 void FCFS_scheduler(const int rp_pipe, const int wo_pipe) {
+	int n, is_working = 1;
+	char buf[100];
+	int cmd[20], time[10][15][11];
+
+	// time is the time schedule for each user, time[i][j][k] is the kth hour of the jth day of ith user.
+	memset(time, 0, sizeof(time)); 
+	
+	while(is_working){
+		if((n = read(rp_pipe, buf, 50)) < 0) {perror("Read Error 1"); exit(EXIT_FAILURE);}
+		else if(n == 0) {printf("pipe from parent closed 1\n"); break;}
+		printf("FCFS receive from parent: ");
+		for(i = 0; i < n; i++){
+			cmd[i] = buf[i];
+			printf("%d ", cmd[i]);
+		}
+		printf("\n");
+		if(buf[0] == '6') {
+			printf("closed!\n");
+			break;
+		}
+		int date = cmd[2], time = cmd[3];
+
+
+
+	}
+
+}
+
+void PR_scheduler(const int rp_pipe, const int wo_pipe) {
+	int n, is_working = 1;
+	char buf[100];
+	int cmd[20], time[10][15][11];
+	memset(time, 0, sizeof(time));
+	while(is_working){
+		if((n = read(rp_pipe, buf, 50)) < 0) {perror("Read Error 2"); exit(EXIT_FAILURE);}
+		else if(n == 0) {printf("pipe from parent closed 2\n"); break;}
+		printf("PR receive from parent: ");
+		for(i = 0; i < n; i++){
+			cmd[i] = buf[i];
+			printf("%d ", cmd[i]);
+		}
+		printf("\n");
+		if(buf[0] == '6') {
+			printf("closed!\n");
+			break;
+		}
+
+		// detail implementation needed
+	}
+
+}
+
+void SJF_scheduler(const int rp_pipe, const int wo_pipe) {
+	int n, is_working = 1;
+	char buf[100];
+	int cmd[20], time[150];
+	memset(time, 0, sizeof(time));
+	while(is_working){
+		if((n = read(rp_pipe, buf, 50)) < 0) {perror("Read Error 3"); exit(EXIT_FAILURE);}
+		else if(n == 0) {printf("pipe from parent closed 3\n"); break;}
+		printf("SJF receive from parent: ");
+		for(i = 0; i < n; i++){
+			cmd[i] = buf[i];
+			printf("%d ", cmd[i]);
+		}
+		printf("\n");
+		if(buf[0] == '6') {
+			printf("closed!\n");
+			break;
+		}
+
+		// detail implementation needed
+
+
+	}
 
 }
 
@@ -153,10 +238,17 @@ void output(const int * rs_pipe, const int rp_pipe){
 
 }
 
+void write_all(char * buf, int n){
+	for(i = 0; i < scheduler_num; i++){
+		if(write(p2s_fd[i][1], buf, n) < 0) perror("write failed 1");
+	}
+	if(write(p2o_fd[1], buf, n) < 0) perror("write failed 2");
+}
+
 
 int main(int argc, char *argv[]) {
 
-	char line[110], file[100];
+	char line[110], file[100], buf[100];
 	int cmd[15], n;
 	
 	//int 
@@ -176,13 +268,8 @@ int main(int argc, char *argv[]) {
 	printf("Please enter ->\n");
 
 	/* make pipes
-		p2s: pipe from parent to scheduler process.
-		s2o: pipe from scheduler to output module.
-		p2o: pipe from parent to output module.
+		
 	*/
-	int p2s_fd[scheduler_num][2];
-	int s2o_fd[scheduler_num][2];
-	int p2o_fd[2];
 
 	for(i = 0; i < scheduler_num; i++){
 		if(pipe(p2s_fd[i]) < 0 || pipe(s2o_fd[i]) < 0)
@@ -200,6 +287,26 @@ int main(int argc, char *argv[]) {
 
 		// the main scheduler function
 		FCFS_scheduler(p2s_fd[0][0], s2o_fd[0][1]);
+		return 0;
+	}
+
+	// the second PR scheduler
+	pid = fork();
+	if(pid == 0){
+		close_pipe(p2s_fd[1][1], s2o_fd[1][0]);
+
+		// the main scheduler function
+		PR_scheduler(p2s_fd[1][0], s2o_fd[1][1]);
+		return 0;
+	}
+
+	// the third SJF scheduler
+	pid = fork();
+	if(pid == 0){
+		close_pipe(p2s_fd[2][1], s2o_fd[2][0]);
+
+		// the main scheduler function
+		SJF_scheduler(p2s_fd[2][0], s2o_fd[2][1]);
 		return 0;
 	}
 
@@ -233,6 +340,7 @@ int main(int argc, char *argv[]) {
 		//printf("entered %s\n", line);
 		if (strcmp(line, "endProgram") == 0) {
 			printf("-> Bye!\n");
+			write_all("6", 1);
 			break;
 		} else {
 			if((n = sep_line(line, cmd, file)) == -1){
@@ -247,9 +355,22 @@ int main(int argc, char *argv[]) {
 				printf("filename: %s", file);
 			}
 			printf("\n");
+
+			if(cmd[0] < 3){
+				for(i = 0; i < n; i++) buf[i] = cmd[i];
+				write_all(buf, n);
+			}
+
 		}
 		printf("Please enter ->\n");
 	}
 
+
+	// close all the pipes
+	for(i = 0; i < scheduler_num; i++){
+		close_pipe(p2s_fd[i][0], s2o_fd[i][1]);
+	}
+	close(p2o_fd[0]);
+	while(wait(NULL) > 0);
 	return 0;
 }

@@ -48,7 +48,7 @@ int cmp_time(const void * a, const void * b){
 		if(ea -> time == eb -> time){
 			return (ea -> dur) - (eb -> dur);
 		}
-		return (ea -> time) - (eb -> dur);
+		return (ea -> time) - (eb -> time);
 	}
 	return (ea -> date) - (eb -> date);
 }
@@ -198,6 +198,16 @@ void add_event(const int * cmd){
 	e_num++;
 }
 
+int gen_msg(char * msg){
+	int msg_p = 0;
+	for(i = 0; i < e_num; i++){
+		if(e[i].valid){
+			msg[msg_p++] = i / 256;
+			msg[msg_p++] = i % 256;
+		}
+	}
+	return msg_p;
+}
 
 void FCFS_scheduler(const int rp_pipe, const int wo_pipe) {
 	int n, is_working = 1;
@@ -270,18 +280,12 @@ void FCFS_scheduler(const int rp_pipe, const int wo_pipe) {
 		} 
 		// send messages to the output module. the message are formed by event numbers, using 256-based representation, each 2 bytes formed a number.
 		// i.e. a two-byte number 'ab' indicates that a event with number 97 * 256 + 98 = 24930, the max event number could represent is 65535.
-		// the total string would be look like 020401ba. which means there are 4 valid event, their number are 2, 4, 1, 24930. 
-		else if(cmd[0] == 4) {
+		// the total string would be look like 010204ab. which means there are 4 valid event, their number are 1, 2, 4, 24930. 
+		else if(cmd[0] == 4 || cmd[0] == 5) {
 			printf("writing something\n");
 			char msg[400];
-			int msg_p = 0, user = cmd[1];
-			for(i = 0; i < e_num; i++){
-				if(e[i].valid){
-					msg[msg_p++] = i / 256;
-					msg[msg_p++] = i % 256;
-				}
-			}
-			if(write(wo_pipe, msg, msg_p) < 0) perror("write failed 3");			
+			int n = gen_msg(msg);
+			if(write(wo_pipe, msg, n) < 0) perror("write failed 3");			
 		}
 
 	}
@@ -419,6 +423,69 @@ void output(const int * rs_pipe, const int rp_pipe){
 				}
 			}
 			
+		} else if(cmd[0] == 5){
+			int s;
+			for(s = 0; s < scheduler_num; s++){
+				//int sch = cmd[2], user = cmd[1];
+				buf[0] = 0;
+				if((n = read(rs_pipe[s], buf, 500)) < 0) {perror("Read Error from sch 2"); exit(EXIT_FAILURE);}
+				else if(n == 0) {printf("pipe from schedule closed 2\n"); break;}
+				printf("OutPut receive from schdule %s: \n", sch_alg[s]);
+				printf("\n\n", n);
+				//printf("User: %s\n", users[user]);
+				Event valid[2000], invalid[2000];
+				int vnum = 0, inum = 0;
+				int ts = 0;
+				for(i = 0; i < n - 1; i += 2){
+					int eid = (buf[i] * 256) + buf[i + 1];
+					valid[vnum++] = e[eid];
+					e[eid].valid = 1;
+					ts += e[eid].dur * e[eid].num;
+				}
+				for(i = 0; i < e_num; i++){
+
+					if(!e[i].valid){
+						invalid[inum++] = e[i];
+					}
+				}
+				qsort(valid, vnum, sizeof(Event), cmp_time);
+				qsort(invalid, inum, sizeof(Event), cmp_time);
+
+				printf("Personal Organizer\n***Schedule Report***\n\n");
+				
+				printf("Algorithm used: %s\n\n", sch_alg[s]);
+				printf("***Accepted List***\n");
+				printf("There are %d requests accepted.\n\n", vnum);
+				printf("Date     \tStart\tEnd\tType\tRemarks\n");
+				printf("==============================================\n");
+				for(i = 0; i < vnum; i++){
+					Event ce = valid[i];
+					printf("2018-04-%d\t%d:00\t%d:00\t%s\t", ce.date + 1, ce.time + 8, ce.time + ce.dur + 8, cmd_name[ce.type]);
+					for(j = 0; j < ce.num; j++){
+						printf("%s ", users[ce.users[j]]);
+					}
+					printf("\n");
+				}
+				printf("==============================================\n\n");
+				printf("There are %d requests rejected.\n\n", inum);
+				printf("Date     \tStart\tEnd\tType\tRemarks\n");
+				printf("==============================================\n");
+				for(i = 0; i < inum; i++){
+					Event ce = invalid[i];
+					printf("2018-04-%d\t%d:00\t%d:00\t%s\t", ce.date + 1, ce.time + 8, ce.time + ce.dur + 8, cmd_name[ce.type]);
+					for(j = 0; j < ce.num; j++){
+						printf("%s ", users[ce.users[j]]);
+					}
+					printf("\n");
+				}
+				printf("==============================================\n\n");
+				printf("Total number of request:\t%d\n", e_num);
+				printf("Timeslot in use:        \t%d hours\n", ts);
+				printf("Timeslot not in use:    \t%d hours\n", 560 - ts);
+				printf("Utilization:            \t%d %\n", ts * 100 / 560);
+
+				printf("==============================================\n\n");
+			}
 		}
 
 	}
@@ -545,7 +612,7 @@ int main(int argc, char *argv[]) {
 					printf("%s\n", fl);
 					int cmd[15], n;
 					n = sep_line(fl, cmd, file);
-					if(n == -1) {printf("invalid Command\n"); break;}
+					if(n == -1) {printf("invalid Command\n"); continue;}
 					for(i = 0; i < n; i++) buf[i] = cmd[i];
 					write_all(buf, n);
 					usleep(500);
@@ -559,7 +626,7 @@ int main(int argc, char *argv[]) {
 			}
 			printf("\n");
 
-			if(cmd[0] < 3 || cmd[0] == 4){
+			if(cmd[0] < 3 || cmd[0] >= 4){
 				for(i = 0; i < n; i++) buf[i] = cmd[i];
 				write_all(buf, n);
 			}

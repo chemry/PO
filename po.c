@@ -57,7 +57,7 @@ void add_event(const int * cmd){
 
 void close_pipe(const int rfd, const int wfd) { // close a pair of file descriptors
     if (close(rfd) == -1 || close(wfd) == -1) {
-        printf("couldn't close file");
+        perror("couldn't close file\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -291,6 +291,9 @@ void FCFS_scheduler(const int rp_pipe, const int wo_pipe) {
 					}
 				}
 			}
+			if(cmd[3] + cmd[4] > 10){
+				is_empty = 0;
+			}
 			if(is_empty){
 				
 				e[cur_num].valid = 1;
@@ -357,7 +360,7 @@ void PR_scheduler(const int rp_pipe, const int wo_pipe) {
         	if(cmd[0] == 4 && cmd[2] != 1) continue;
             qsort(e, e_num, sizeof(Event), cmp_priority);//to sort all events by 1.time length 2. arrival order 3. day
             int y;
-        //iterate over all events to determine validation
+        	//iterate over all events to determine validation
             for (y = 0; y < e_num; y++){
                 //int cur_num = y;
                 int ori_num=e[y].id;
@@ -375,6 +378,9 @@ void PR_scheduler(const int rp_pipe, const int wo_pipe) {
                         }
                     }
                 }
+                if(time + dur > 10){
+					is_empty = 0;
+				}
 
                 if(is_empty){
                     e[y].valid = 1;
@@ -443,6 +449,9 @@ void SJF_scheduler(const int rp_pipe, const int wo_pipe) {
                         }
                     }
                 }
+                if(time + dur > 10){
+					is_empty = 0;
+				}
 
                 if(is_empty){
                     e[y].valid = 1;
@@ -470,9 +479,6 @@ void SJF_scheduler(const int rp_pipe, const int wo_pipe) {
 }
 
 
-/*
-	use malloc like thoughts
-*/
 void re_scheduler(const int rp_pipe, const int wo_pipe){
 	int n, is_working = 1;
 	char buf[100];
@@ -757,13 +763,14 @@ void output(const int * rs_pipe, const int rp_pipe){
 				fprintf(fp, "Timeslot in use:        \t%d hours\n", ts);
 				fprintf(fp, "Timeslot not in use:    \t%d hours\n", 560 - ts);
 				fprintf(fp, "Utilization:            \t%d %\n", ts * 100 / 560);
-
+				//printf("%s\n", sch_name[s]);
 				fprintf(fp, "   - End -\n");
 				fprintf(fp, "======================================================================\n\n");
 				
 			}
 		}
-		if(buf[0] >= 4){
+		if(cmd[0] >= 4){
+			//printf("file closed\n");
 			fclose(fp);	
 		}
 	}
@@ -799,9 +806,7 @@ int main(int argc, char *argv[]) {
 	printf("~~WELCOME TO PO~~\n");
 	printf("Please enter ->\n");
 
-	/* make pipes
-		
-	*/
+
 
 	for(i = 0; i < scheduler_num; i++){
 		if(pipe(p2s_fd[i]) < 0 || pipe(s2o_fd[i]) < 0)
@@ -879,10 +884,13 @@ int main(int argc, char *argv[]) {
 
 	// parent process
 	// close the read pipe with schedulers.
-	for(i = 0; i < scheduler_num; i++)
-		if(close(p2s_fd[i][0]) == -1) perror("close failed 3");
-	// close the read pipe with output module
-	if(close(p2o_fd[0]) == -1) perror("close failed 4");
+	// close all the pipes
+	for(i = 0; i < scheduler_num; i++){
+		//printf("closing %d\n", i);
+		close_pipe(p2s_fd[i][0], s2o_fd[i][1]);
+		//printf("%d closed\n", i);
+	}
+	close(p2o_fd[0]);
 	
 
 	// read from the command line.
@@ -946,11 +954,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	// close all the pipes
-	for(i = 0; i < scheduler_num; i++){
-		close_pipe(p2s_fd[i][0], s2o_fd[i][1]);
-	}
-	close(p2o_fd[0]);
+	
 	while(wait(NULL) > 0);
 	return 0;
 }

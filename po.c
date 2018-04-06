@@ -230,7 +230,7 @@ int sep_line(char * line, int * cmd, char * file){
 
 int gen_msg(char * msg){ // each part has 4 bytes: id(2 bytes), date, time
 	int msg_p = 0;
-	printf("e_num: %d \n", e_num);
+	//printf("e_num: %d \n", e_num);
 	for(i = 0; i < e_num; i++){
 		if(e[i].valid){
 			int id = e[i].id;
@@ -241,7 +241,7 @@ int gen_msg(char * msg){ // each part has 4 bytes: id(2 bytes), date, time
 			//printf(">>>%d %d %d\n", id, e[i].date, e[i].time);
 		}
 	}
-	printf("msg_p: %d\n", msg_p);
+	//printf("msg_p: %d\n", msg_p);
 	return msg_p;
 }
 
@@ -255,14 +255,14 @@ void FCFS_scheduler(const int rp_pipe, const int wo_pipe) {
 	while(is_working){
 		if((n = read(rp_pipe, buf, 50)) < 0) {perror("Read Error 1"); exit(EXIT_FAILURE);}
 		else if(n == 0) {printf("pipe from parent closed 1\n"); break;}
-		printf("FCFS receive from parent: ");
+		//printf("FCFS receive from parent: ");
 		for(i = 0; i < n; i++){
 			cmd[i] = buf[i];
-			printf("%d ", cmd[i]);
+			//printf("%d ", cmd[i]);
 		}
-		printf("\n");
+		//printf("\n");
 		if(buf[0] == '6') {
-			printf("closed!\n");
+			//printf("closed!\n");
 			break;
 		}
 		if(cmd[0] < 3){
@@ -319,12 +319,13 @@ void FCFS_scheduler(const int rp_pipe, const int wo_pipe) {
 		// the total string would be look like 010204ab. which means there are 4 valid event, their number are 1, 2, 4, 24930. 
 		else if(cmd[0] == 4 || cmd[0] == 5) {
 			if(cmd[0] == 4 && cmd[2] != 0) continue;
-			printf("writing something\n");
+			
+			//printf("writing something\n");
 			char msg[400];
 			int n = gen_msg(msg);
-			printf("%d\n", n);
+			//printf("%d\n", n);
 			if(write(wo_pipe, msg, n) < 0) perror("write failed 3");
-			printf("write finished\n");		
+			//printf("write finished\n");		
 		}
 
 	}
@@ -339,14 +340,14 @@ void PR_scheduler(const int rp_pipe, const int wo_pipe) {
 	while(is_working){
 		if((n = read(rp_pipe, buf, 50)) < 0) {perror("Read Error 3"); exit(EXIT_FAILURE);}
 		else if(n == 0) {printf("pipe from parent closed 3\n"); break;}
-		printf("PR receive from parent: ");
+		//printf("PR receive from parent: ");
 		for(i = 0; i < n; i++){
 			cmd[i] = buf[i];
-			printf("%d ", cmd[i]);
+			//printf("%d ", cmd[i]);
 		}
-		printf("\n");
+		//printf("\n");
 		if(buf[0] == '6') {
-			printf("closed!\n");
+			//printf("closed!\n");
 			break;
 		}
 		if (cmd[0] < 3){
@@ -385,12 +386,12 @@ void PR_scheduler(const int rp_pipe, const int wo_pipe) {
 	                    }
 	                }
 
-                    printf("PR: valid event! %d %d %d %d\n", ori_num,e[y].type, date, time);
+                    //printf("PR: valid event! %d %d %d %d\n", ori_num,e[y].type, date, time);
                 } else {
-                    printf("PR: invalid event! %d %d %d %d\n", ori_num,e[y].type, date, time);
+                   // printf("PR: invalid event! %d %d %d %d\n", ori_num,e[y].type, date, time);
                 }
             }
-			printf("writing something\n");
+			//printf("writing something\n");
 			char msg[400];
 			int n = gen_msg(msg);
 			if(write(wo_pipe, msg, n) < 0) perror("write failed 3");
@@ -407,14 +408,14 @@ void SJF_scheduler(const int rp_pipe, const int wo_pipe) {
 	while(is_working){
 		if((n = read(rp_pipe, buf, 50)) < 0) {perror("Read Error 3"); exit(EXIT_FAILURE);}
 		else if(n == 0) {printf("pipe from parent closed 3\n"); break;}
-		printf("SJF receive from parent: ");
+		//printf("SJF receive from parent: ");
 		for(i = 0; i < n; i++){
 			cmd[i] = buf[i];
-			printf("%d ", cmd[i]);
+			//printf("%d ", cmd[i]);
 		}
-		printf("\n");
+		//printf("\n");
 		if(buf[0] == '6') {
-			printf("closed!\n");
+			//printf("closed!\n");
 			break;
 		}
 		if (cmd[0]<3){
@@ -457,11 +458,11 @@ void SJF_scheduler(const int rp_pipe, const int wo_pipe) {
                     //printf("SJF: invalid event!\n");
                 }
             }
-			printf("writing something\n");
+			//printf("writing something\n");
 			char msg[400];
-			printf("sjf st\n");
+			//printf("sjf st\n");
 			int n = gen_msg(msg);
-			printf("sjf ed\n");
+			//printf("sjf ed\n");
 			if(write(wo_pipe, msg, n) < 0) perror("write failed 3");
 		}
 	}
@@ -482,14 +483,14 @@ void re_scheduler(const int rp_pipe, const int wo_pipe){
 	while(is_working){
 		if((n = read(rp_pipe, buf, 50)) < 0) {perror("Read Error 4"); exit(EXIT_FAILURE);}
 		else if(n == 0) {printf("pipe from parent closed 4\n"); break;}
-		printf("RE receive from parent: ");
+		//printf("RE receive from parent: ");
 		for(i = 0; i < n; i++){
 			cmd[i] = buf[i];
-			printf("%d ", cmd[i]);
+			//printf("%d ", cmd[i]);
 		}
-		printf("\n");
+		//printf("\n");
 		if(buf[0] == '6') {
-			printf("closed!\n");
+			//printf("closed!\n");
 			break;
 		}
 		if(cmd[0] < 3){
@@ -570,12 +571,13 @@ void re_scheduler(const int rp_pipe, const int wo_pipe){
 			}
 
 
-			printf("writing something re\n");
+			
+			//printf("writing something re\n");
 			char msg[800];
 			int n = gen_msg(msg);
 			//printf("%d msg: %c%c%c%c\n", n, msg[0], msg[1], msg[2], msg[3]);
 			if(write(wo_pipe, msg, n) < 0) perror("write failed 3");
-			printf("write finished\n");			
+			//printf("write finished\n");			
 		}
 
 	}
@@ -610,18 +612,18 @@ void output(const int * rs_pipe, const int rp_pipe){
 	while(is_working){
 		if((n = read(rp_pipe, buf, 500)) < 0) {perror("Read Error 4"); exit(EXIT_FAILURE);}
 		else if(n == 0) {printf("pipe from parent closed 1\n"); break;}
-		printf("OutPut receive from parent: ");
+		//printf("OutPut receive from parent: ");
 		if(buf[0] == '6') {
-			printf("closed!\n");
+			//printf("closed!\n");
 			break;
 		}
 		n = buf[0] >= 4 ? (buf[0] == 4 ? 3 : 1) : n;
 		
 		for(i = 0; i < n; i++){
 			cmd[i] = buf[i];
-			printf("%d ", cmd[i]);
+			//printf("%d ", cmd[i]);
 		}
-		printf("\n");
+		//printf("\n");
 		if(buf[0] >= 4){
 			file = buf + 5;
 			fp = fopen(file, "w");
@@ -641,8 +643,8 @@ void output(const int * rs_pipe, const int rp_pipe){
 			buf[0] = 0;
 			if((n = read(rs_pipe[sch], buf, 500)) < 0) {perror("Read Error from sch 1"); exit(EXIT_FAILURE);}
 			else if(n == 0) {printf("pipe from schedule closed 1\n"); break;}
-			printf("OutPut receive from schdule %s: \n", sch_alg[sch]);
-			printf("\n\n", n);
+			//printf("OutPut receive from schdule %s: \n", sch_alg[sch]);
+			//printf("\n\n", n);
 			//printf("User: %s\n", users[user]);
 			Event valid[2000];
 			int vnum = 0;
@@ -683,7 +685,7 @@ void output(const int * rs_pipe, const int rp_pipe){
 			fprintf(fp, "    - End -\n");
 			fprintf(fp, "======================================================================\n");
 		} else if(cmd[0] == 5){
-			printf("receive print report\n");
+			//printf("receive print report\n");
 			int s;
 			fprintf(fp, "Personal Organizer\n***Schedule Report***\n\n");
 			for(s = 0; s < scheduler_num; s++){
@@ -691,8 +693,8 @@ void output(const int * rs_pipe, const int rp_pipe){
 				buf[0] = 0;
 				if((n = read(rs_pipe[s], buf, 500)) < 0) {perror("Read Error from sch 2"); exit(EXIT_FAILURE);}
 				else if(n == 0) {printf("pipe from schedule closed 2\n"); break;}
-				printf("OutPut receive from schdule %s: \n", sch_alg[s]);
-				printf("\n\n", n);
+				//printf("OutPut receive from schdule %s: \n", sch_alg[s]);
+				//printf("\n\n", n);
 				//printf("User: %s\n", users[user]);
 				Event valid[2000], invalid[2000];
 				int vnum = 0, inum = 0;
@@ -711,7 +713,7 @@ void output(const int * rs_pipe, const int rp_pipe){
 					valid[vnum++].time = time; 
 					ts += e[eid].dur * e[eid].num;
 					e[eid].valid = 1;
-					printf("eid: %d %d %d\n", eid, date, time);
+					//printf("eid: %d %d %d\n", eid, date, time);
 				}
 
 				for(i = 0; i < e_num; i++){
@@ -793,6 +795,7 @@ int main(int argc, char *argv[]) {
 		users[i] = format(argv[i + 1]);
 	}
 	// print initial message
+	
 	printf("~~WELCOME TO PO~~\n");
 	printf("Please enter ->\n");
 
@@ -896,7 +899,7 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 			for(i = 0; i < n; i++){
-				printf("%d ", cmd[i]);
+				//printf("%d ", cmd[i]);
 			}
 
 			if(cmd[0] == 3){ // command add Batch
@@ -904,7 +907,7 @@ int main(int argc, char *argv[]) {
 				char * fl;
 				size_t len = 0;
 				while(getline(&fl, &len, fp) != -1){
-					printf("%s\n", fl);
+					//printf("%s\n", fl);
 					int cmd[15], n;
 					n = sep_line(fl, cmd, file);
 					if(n == -1) {printf("invalid Command\n"); continue;}
@@ -917,9 +920,9 @@ int main(int argc, char *argv[]) {
 			}
 
 			if(cmd[0] >= 3){
-				printf("filename: %s", file);
+				//printf("filename: %s", file);
 			}
-			printf("\n");
+			//printf("\n");
 
 			if(cmd[0] < 3){
 				for(i = 0; i < n; i++) buf[i] = cmd[i];

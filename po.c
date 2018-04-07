@@ -207,6 +207,8 @@ int sep_line(char * line, int * cmd, char * file){
 	cmd[4] = atoi(sep[4]);
 	if(cmd[4] < 0 || cmd[4] > 10) return -1; // the duration is too long and over a day
 
+	if((cmd[3] + cmd[4]) > 10) return -1;
+
 	if(cur == 5) return 5; // there are only 5 sub-cmd, i.e. addClass. 
 
 	// calculate the callee num
@@ -217,6 +219,16 @@ int sep_line(char * line, int * cmd, char * file){
 		for(j = 0; j < user_num; j++){
 			if(strcmp(users[j], format(sep[5 + i])) == 0){ // compare the name with the user
 				cmd[6 + i] = j;
+				if(j == cmd[1]){
+					j = user_num;
+				}
+				int k;
+				for(k = 6; k < 6 + i; k++){
+					if(j == cmd[k]){
+						j = user_num;
+						break;
+					}
+				}
 				break;
 			}
 		}
@@ -238,7 +250,8 @@ int gen_msg(char * msg){ // each part has 4 bytes: id(2 bytes), date, time
 			msg[msg_p++] = id % 256;
 			msg[msg_p++] = e[i].date;
 			msg[msg_p++] = e[i].time;
-			//printf(">>>%d %d %d\n", id, e[i].date, e[i].time);
+			if(e[i].num == 0)
+				printf(">>>%d %d %d\n", id, e[i].date, e[i].time);
 		}
 	}
 	//printf("msg_p: %d\n", msg_p);
@@ -273,45 +286,25 @@ void FCFS_scheduler(const int rp_pipe, const int wo_pipe) {
 
 			int is_empty = 1;
 			// check if the time slot is avaliable
-			// for the caller
-			for(i = time; i < time + dur; i++){
-				if(t[cmd[1]][date][i].occupied){
-					is_empty = 0;
-					break;
-				}
-			}
-			// for the callee
-			if(cmd[0] != 0){
-				for(i = 6; i < 6 + cmd[5]; i++){ //cmd[i] be one of the callee
-					for(j = time; j < time + dur; j++){
-						if(t[cmd[i]][date][j].occupied){
-							is_empty = 0;
-							break;
-						}
-					}
-				}
-			}
-			if(cmd[3] + cmd[4] > 10){
-				is_empty = 0;
-			}
+			Event ce = e[e_num - 1];
+            for(i = 0; i < ce.num; i++){
+            	for(j = time; j < time + dur; j++){
+                    if(t[ce.users[i]][date][j].occupied){
+                        is_empty = 0;
+                        break;
+                    }
+                }
+            }
+
 			if(is_empty){
-				
 				e[cur_num].valid = 1;
 				// fill the time slot.
 				// for the caller
-				for(i = time; i < time + dur; i++){
-					t[cmd[1]][date][i].occupied = 1;
-					t[cmd[1]][date][i].event = cur_num;
-				}
-				// for the callee
-				if(cmd[0] != 0){
-					for(i = 6; i < 6 + cmd[5]; i++){ //cmd[i] be one of the callee
-						for(j = time; j < time + dur; j++){
-							t[cmd[i]][date][j].occupied = 1;
-							t[cmd[i]][date][i].event = cur_num;
-						}
-					}
-				}
+				for(i = 0; i < ce.num; i++){
+            	for(j = time; j < time + dur; j++){
+                    t[ce.users[i]][date][j].occupied = 1;
+                }
+            }
 				//printf("FCFS: valid event!\n");
 			} else {
 				//printf("FCFS: invalid event!\n");
@@ -378,9 +371,6 @@ void PR_scheduler(const int rp_pipe, const int wo_pipe) {
                         }
                     }
                 }
-                if(time + dur > 10){
-					is_empty = 0;
-				}
 
                 if(is_empty){
                     e[y].valid = 1;
@@ -449,9 +439,6 @@ void SJF_scheduler(const int rp_pipe, const int wo_pipe) {
                         }
                     }
                 }
-                if(time + dur > 10){
-					is_empty = 0;
-				}
 
                 if(is_empty){
                     e[y].valid = 1;
@@ -629,6 +616,9 @@ void output(const int * rs_pipe, const int rp_pipe){
 			cmd[i] = buf[i];
 			//printf("%d ", cmd[i]);
 		}
+
+
+
 		//printf("\n");
 		if(buf[0] >= 4){
 			file = buf + 5;
@@ -740,6 +730,9 @@ void output(const int * rs_pipe, const int rp_pipe){
 				fprintf(fp, "======================================================================\n");
 				for(i = 0; i < vnum; i++){
 					Event ce = valid[i];
+					if(ce.dur + ce.time > 10 || ce.dur == 0){
+						continue;
+					}
 					fprintf(fp, "2018-04-%02d%3s%02d:00%3s%02d:00%3s%-13s%3s", ce.date + 1, "", ce.time + 8, "", ce.time + ce.dur + 8, "", cmd_name[ce.type], "");
 					for(j = 0; j < ce.num; j++){
 						fprintf(fp, "%s ", users[ce.users[j]]);
@@ -752,17 +745,21 @@ void output(const int * rs_pipe, const int rp_pipe){
 				fprintf(fp, "======================================================================\n");
 				for(i = 0; i < inum; i++){
 					Event ce = invalid[i];
+					if(ce.dur + ce.time > 10 || ce.dur == 0){
+						continue;
+					}
 					fprintf(fp, "2018-04-%02d%3s%02d:00%3s%02d:00%3s%-13s%3s", ce.date + 1, "", ce.time + 8, "", ce.time + ce.dur + 8, "", cmd_name[ce.type], "");
 					for(j = 0; j < ce.num; j++){
 						fprintf(fp, "%s ", users[ce.users[j]]);
 					}
 					fprintf(fp, "\n");
 				}
+				int total_time = user_num * 140;
 				fprintf(fp, "======================================================================\n\n");
 				fprintf(fp, "Total number of request:\t%d\n", e_num);
 				fprintf(fp, "Timeslot in use:        \t%d hours\n", ts);
-				fprintf(fp, "Timeslot not in use:    \t%d hours\n", 560 - ts);
-				fprintf(fp, "Utilization:            \t%d %\n", ts * 100 / 560);
+				fprintf(fp, "Timeslot not in use:    \t%d hours\n", total_time - ts);
+				fprintf(fp, "Utilization:            \t%d %\n", ts * 100 / total_time);
 				//printf("%s\n", sch_name[s]);
 				fprintf(fp, "   - End -\n");
 				fprintf(fp, "======================================================================\n\n");
@@ -904,6 +901,7 @@ int main(int argc, char *argv[]) {
 		} else {
 			if((n = sep_line(line, cmd, file)) == -1){
 				printf("Invalid Command!\n");
+				printf("Please enter ->\n");
 				continue;
 			}
 			for(i = 0; i < n; i++){
@@ -914,14 +912,16 @@ int main(int argc, char *argv[]) {
 				FILE * fp = fopen(file, "r");
 				char * fl;
 				size_t len = 0;
+				int cl = 0;
 				while(getline(&fl, &len, fp) != -1){
+					cl++;
 					//printf("%s\n", fl);
 					int cmd[15], n;
 					n = sep_line(fl, cmd, file);
-					if(n == -1) {printf("invalid Command\n"); continue;}
+					if(n == -1) {printf("Invalid Command in line %d: %s", cl, fl);continue;}
 					for(i = 0; i < n; i++) buf[i] = cmd[i];
 					write_all(buf, n);
-					usleep(2500);
+					usleep(8000);
 				}
 				fclose(fp);
 				if(fl) free(fl);
